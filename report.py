@@ -1,5 +1,9 @@
 import matplotlib.pyplot as plt
 
+MIN_MONTHLY_PLAYS_FOR_OBSESSION = 20
+MIN_MONTHLY_ARTIST_PLAYS_FOR_OBSESSION = 50
+MIN_MONTHLY_ALBUM_PLAYS_FOR_OBSESSION = 20
+
 def create_table(headers, rows, table_class=""):
     html = f'<table class="{table_class}">'
 
@@ -20,7 +24,7 @@ def create_table(headers, rows, table_class=""):
 
     return html
 
-def create_html_report(artist_time, year_artist_time, song_time, song_plays, album_time, year_time, month_time):
+def create_html_report(artist_time, year_artist_time, song_time, song_plays, album_time, year_time, month_time, song_skip_rates, song_early_skip_rates, month_song_plays, month_artist_plays, month_album_plays):
     html = """
     <html>
     <head>
@@ -60,6 +64,14 @@ def create_html_report(artist_time, year_artist_time, song_time, song_plays, alb
                 max-width: 800px;
                 display: block;
                 margin: 20px auto
+            }
+
+            .wide-chart {
+                width: 1100px;
+                max-width: 82vw;
+                position: relative;
+                left: 50%;
+                transform: translateX(-50%);
             }
 
         </style>
@@ -230,7 +242,202 @@ def create_html_report(artist_time, year_artist_time, song_time, song_plays, alb
 
     html += """
         <img src="month_listening.png" alt="Listening Time by Month">
-        """
+    """
+
+    html += """
+        <h2>Listening Time by Hour of the Day</h2>
+        <img src="hour_listening.png" alt="Listening Time by Hour of Day">
+    """
+
+    html += """
+        <h2>Listening Time by Day of the Week</h2>
+        <img src="weekday_listening.png" alt="Listening Time by Day of Week">
+    """
+
+    sorted_skip_rates = sorted(
+        song_skip_rates.items(),
+        key=lambda item: item[1],
+        reverse=True
+    )
+
+    rows = []
+
+    for rank, ((song, artist), rate) in enumerate(sorted_skip_rates[:10], start=1):
+        rows.append([
+            rank,
+            song,
+            artist,
+            round(rate * 100)
+        ])
+
+    html += "<h2>Top 10 Songs by Skip Rate</h2>"
+
+    html += create_table(
+        ["Rank", "Song", "Artist", "Skip Rate (%)"],
+        rows
+    )
+
+    sorted_early_skip_rates = sorted(
+        song_early_skip_rates.items(),
+        key=lambda item: item[1],
+        reverse=True
+    )
+
+    rows = []
+
+    for rank, ((song, artist), rate) in enumerate(
+        sorted_early_skip_rates[:10],
+        start=1
+    ):
+        rows.append([
+            rank,
+            song,
+            artist,
+            round(rate * 100)
+        ])
+
+    html += "<h2>Top 10 Songs by Early Skip Rate</h2>"
+
+    html += create_table(
+        ["Rank", "Song", "Artist", "Early Skip Rate (%)"],
+        rows
+    )
+
+    song_obsessions = []
+
+    for month, songs in month_song_plays.items():
+        total_month_plays = sum(songs.values())
+
+        for song_key, plays in songs.items():
+            if plays >= MIN_MONTHLY_PLAYS_FOR_OBSESSION:
+                percentage = plays / total_month_plays * 100
+
+                song_obsessions.append(
+                    (song_key, month, plays, percentage)
+                )
+
+    song_obsessions = sorted(
+        song_obsessions,
+        key=lambda item: item[3],
+        reverse=True
+    )
+
+    rows = []
+
+    for rank, (song_key, month, plays, percentage) in enumerate(
+        song_obsessions[:10],
+        start=1
+    ):
+        song, artist = song_key
+
+        rows.append([
+            rank,
+            song,
+            artist,
+            month,
+            plays,
+            round(percentage)
+        ])
+
+    html += "<h2>Top Song Obsessions by Month</h2>"
+
+    html += create_table(
+        ["Rank", "Song", "Artist", "Month", "Plays", "Share of Month (%)"],
+        rows
+    )
+
+    artist_obsessions = []
+
+    for month, artists in month_artist_plays.items():
+        total_month_plays = sum(artists.values())
+
+        for artist, plays in artists.items():
+            if plays >= MIN_MONTHLY_ARTIST_PLAYS_FOR_OBSESSION:
+                percentage = plays / total_month_plays * 100
+
+                artist_obsessions.append(
+                    (artist, month, plays, percentage)
+                )
+
+    artist_obsessions = sorted(
+        artist_obsessions,
+        key=lambda item: item[3],
+        reverse=True
+    )
+
+    rows = []
+    
+    for rank, (artist, month, plays, percentage) in enumerate(
+        artist_obsessions[:10],
+        start=1
+    ):
+    
+        rows.append([
+            rank,
+            artist,
+            month,
+            plays,
+            round(percentage)
+        ])
+    
+    html += "<h2>Top Artist Obsessions by Month</h2>"
+    
+    html += create_table(
+        ["Rank", "Artist", "Month", "Plays", "Share of Month (%)"],
+        rows
+    )
+
+    album_obsessions = []
+
+    for month, albums in month_album_plays.items():
+        total_month_plays = sum(albums.values())
+
+        for album_key, plays in albums.items():
+            if plays >= MIN_MONTHLY_ALBUM_PLAYS_FOR_OBSESSION:
+                percentage = plays / total_month_plays * 100
+
+                album_obsessions.append(
+                    (album_key, month, plays, percentage)
+                )
+
+    album_obsessions = sorted(
+        album_obsessions,
+        key=lambda item: item[3],
+        reverse=True
+    )
+
+    rows = []
+
+    for rank, (album_key, month, plays, percentage) in enumerate(
+        album_obsessions[:10],
+        start=1
+    ):
+        album, artist = album_key
+
+        rows.append([
+            rank,
+            album,
+            artist,
+            month,
+            plays,
+            round(percentage)
+        ])
+
+    html += "<h2>Top Album Obsessions by Month</h2>"
+
+    html += create_table(
+        ["Rank", "Album", "Artist", "Month", "Plays", "Share of Month (%)"],
+        rows
+    )
+
+    html += """
+        <h2>Top Artists Over Time</h2>
+        <img
+            class="wide-chart"
+            src="artist_trends.png"
+            alt="Top Artists Over Time"
+         >
+    """
 
     html += """
     </body>
@@ -285,8 +492,122 @@ def create_month_chart(month_time):
          [months[i] for i in tick_positions],
          rotation=45
     )
-    
+
     plt.tight_layout()
 
     plt.savefig("month_listening.png")
+    plt.close()
+
+def create_hour_chart(hour_time):
+    hours = list(range(24))
+
+    listening_hours = []
+
+    for hour in hours:
+        ms = hour_time.get(hour, 0)
+        listening_hours.append(ms / 3600000)
+
+    plt.figure(figsize=(12, 5))
+
+    plt.bar(hours, listening_hours)
+
+    plt.title("Listening Time by Hour of Day")
+    plt.xlabel("Hour")
+    plt.ylabel("Hours")
+
+    plt.xticks(hours)
+
+    plt.tight_layout()
+
+    plt.savefig("hour_listening.png")
+    plt.close()
+
+def create_weekday_chart(weekday_time):
+    weekdays = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday"
+    ]
+
+    listening_hours = []
+
+    for day in weekdays:
+        ms = weekday_time.get(day, 0)
+        listening_hours.append(ms / 3600000)
+
+    plt.figure(figsize=(10, 5))
+
+    plt.bar(weekdays, listening_hours)
+
+    plt.title("Listening Time by Day of Week")
+    plt.xlabel("Day")
+    plt.ylabel("Hours")
+
+    plt.xticks(rotation=45)
+
+    plt.tight_layout()
+
+    plt.savefig("weekday_listening.png")
+    plt.close()
+
+def create_artist_trends_chart(month_artist_plays):
+    artist_total_plays = {}
+
+    for artists in month_artist_plays.values():
+        for artist, plays in artists.items():
+            if artist not in artist_total_plays:
+                artist_total_plays[artist] = 0
+
+            artist_total_plays[artist] += plays
+
+    sorted_artists = sorted(
+        artist_total_plays.items(),
+        key=lambda item: item[1],
+        reverse=True
+    )
+
+    top_artists = [
+        artist
+        for artist, plays in sorted_artists[:5]
+    ]
+
+    months = sorted(month_artist_plays)
+
+    plt.figure(figsize=(16, 7))
+
+    for artist in top_artists:
+        monthly_plays = []
+
+        for month in months:
+            plays = month_artist_plays[month].get(artist, 0)
+            monthly_plays.append(plays)
+
+        plt.plot(
+            months,
+            monthly_plays,
+            label=artist,
+            linewidth=2
+        )
+
+    tick_positions = range(0, len(months), 12)
+
+    plt.xticks(
+        tick_positions,
+        [months[i] for i in tick_positions],
+        rotation=45
+    )
+
+    plt.title("Top Artists Over Time")
+    plt.xlabel("Month")
+    plt.ylabel("Plays")
+
+    plt.grid(axis="y", alpha=0.3)
+    plt.legend()
+    plt.tight_layout()
+
+    plt.savefig("artist_trends.png")
     plt.close()
