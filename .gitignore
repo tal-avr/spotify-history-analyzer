@@ -4,3 +4,6 @@ data/
 planner.pages
 report.html
 *.png
+
+!sample_output/report.html
+!sample_output/*.png

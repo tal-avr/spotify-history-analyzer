@@ -24,7 +24,7 @@ def create_table(headers, rows, table_class=""):
 
     return html
 
-def create_html_report(artist_time, year_artist_time, song_time, song_plays, album_time, year_time, month_time, song_skip_rates, song_early_skip_rates, month_song_plays, month_artist_plays, month_album_plays):
+def create_html_report(artist_time, year_artist_time, song_time, song_plays, album_time, year_time, month_time, song_skip_rates, song_early_skip_rates, month_song_plays, month_artist_plays, month_album_plays, output_dir):
     html = """
     <html>
     <head>
@@ -444,11 +444,11 @@ def create_html_report(artist_time, year_artist_time, song_time, song_plays, alb
     </html>
     """
 
-    with open("report.html", "w", encoding="utf-8") as file:
+    with open(f"{output_dir}/report.html", "w", encoding="utf-8") as file:
         file.write(html)
 
 
-def create_year_chart(year_time):
+def create_year_chart(year_time, output_dir):
     years = sorted(year_time)
 
     hours = []
@@ -466,10 +466,10 @@ def create_year_chart(year_time):
 
     plt.tight_layout()
 
-    plt.savefig("year_listening.png")
+    plt.savefig(f"{output_dir}/year_listening.png")
     plt.close()
 
-def create_month_chart(month_time):
+def create_month_chart(month_time, output_dir):
     months = sorted(month_time)
 
     hours = []
@@ -495,10 +495,10 @@ def create_month_chart(month_time):
 
     plt.tight_layout()
 
-    plt.savefig("month_listening.png")
+    plt.savefig(f"{output_dir}/month_listening.png")
     plt.close()
 
-def create_hour_chart(hour_time):
+def create_hour_chart(hour_time, output_dir):
     hours = list(range(24))
 
     listening_hours = []
@@ -519,10 +519,10 @@ def create_hour_chart(hour_time):
 
     plt.tight_layout()
 
-    plt.savefig("hour_listening.png")
+    plt.savefig(f"{output_dir}/hour_listening.png")
     plt.close()
 
-def create_weekday_chart(weekday_time):
+def create_weekday_chart(weekday_time, output_dir):
     weekdays = [
         "Sunday",
         "Monday",
@@ -551,10 +551,10 @@ def create_weekday_chart(weekday_time):
 
     plt.tight_layout()
 
-    plt.savefig("weekday_listening.png")
+    plt.savefig(f"{output_dir}/weekday_listening.png")
     plt.close()
 
-def create_artist_trends_chart(month_artist_plays):
+def create_artist_trends_chart(month_artist_plays, output_dir):
     artist_total_plays = {}
 
     for artists in month_artist_plays.values():
@@ -609,5 +609,5 @@ def create_artist_trends_chart(month_artist_plays):
     plt.legend()
     plt.tight_layout()
 
-    plt.savefig("artist_trends.png")
+    plt.savefig(f"{output_dir}/artist_trends.png")
     plt.close()

@@ -5,14 +5,19 @@ from statistics import median
 
 MIN_EVENTS_FOR_SKIP_RATE = 40
 
+# This dictionary contains only selected country-to-timezone mappings.
+# Add additional countries as needed.
+# For countries with multiple timezones, use travel overrides instead.
 country_timezones = {
     "IL": "Asia/Jerusalem",
     "GB": "Europe/London",
+    "FR": "Europe/Paris",
     "CZ": "Europe/Prague",
     "RO": "Europe/Bucharest",
     "CH": "Europe/Zurich",
     "AT": "Europe/Vienna",
-    "NL": "Europe/Amsterdam"
+    "NL": "Europe/Amsterdam",
+    "DE": "Europe/Berlin"
 }
 
 def get_timezone(timestamp, country, travel_overrides):
