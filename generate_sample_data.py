@@ -2,7 +2,8 @@ import json
 import random
 from datetime import datetime, timedelta
 
-random.seed(42) # Use a fixed seed so the sample data is reproducible across runs.
+# Use a fixed seed so the sample data is reproducible across runs.
+random.seed(42)
 
 artists = {
     "Harry Potter": [
@@ -25,31 +26,31 @@ artists = {
         ("Second Chances", "My Favorite Ballads", 220000),
         ("The Prophecy", "My Favorite Ballads", 205000),
     ],
-     "Severus Snape": [
-            ("half blood prince", "doe", 275000),
-            ("potions master, death eater", "doe", 211000),
-            ("lily", "doe", 225000),
-        ],
+    "Severus Snape": [
+        ("half blood prince", "doe", 275000),
+        ("potions master, death eater", "doe", 211000),
+        ("lily", "doe", 225000),
+    ],
     "Dolores Umbridge": [
-            ("I WILL HAVE ORDER", "Lies", 233000),
-            ("What Cornelius Doesn't Know", "Lies", 284300),
-            ("Highest Inquisitor", "Lies", 300000),
-        ],
+        ("I WILL HAVE ORDER", "Lies", 233000),
+        ("What Cornelius Doesn't Know", "Lies", 284300),
+        ("Highest Inquisitor", "Lies", 300000),
+    ],
     "Minerva McGonagall": [
-                ("Always Wanted to Use that Spell", "Babbity Rabbity", 143000),
-                ("The Dungeons Would Do", "Babbity Rabbity", 207300),
-                ("Babbling, Bumbling Band of Baboons", "Babbity Rabbity", 210000),
-            ],
+        ("Always Wanted to Use that Spell", "Babbity Rabbity", 143000),
+        ("The Dungeons Would Do", "Babbity Rabbity", 207300),
+        ("Babbling, Bumbling Band of Baboons", "Babbity Rabbity", 210000),
+    ],
     "Draco Malfoy": [
-                    ("Good or Evil", "UNTOUCHABLE", 184390),
-                    ("The Malfoys", "UNTOUCHABLE", 198000),
-                    ("Me, Who Must Not Be Named", "UNTOUCHABLE", 179200),
-                ],
+        ("Good or Evil", "UNTOUCHABLE", 184390),
+        ("The Malfoys", "UNTOUCHABLE", 198000),
+        ("Me, Who Must Not Be Named", "UNTOUCHABLE", 179200),
+    ],
     "Rubeus Hagrid": [
-                        ("LOVE ME JOB", "Me Songs", 144000),
-                        ("ARAGOG", "Me Songs", 193000),
-                        ("HAPPIE TIMES", "Me Songs", 249100),
-                    ],
+        ("LOVE ME JOB", "Me Songs", 144000),
+        ("ARAGOG", "Me Songs", 193000),
+        ("HAPPIE TIMES", "Me Songs", 249100),
+    ],
     "Lord Voldemort": [
         ("The Boy Who Lived Instead of Me", "The Dark Lord (Tom's Version)", 200000),
         ("Even I Miss My Nose Sometimes", "The Dark Lord (Tom's Version)", 185000),
@@ -61,19 +62,15 @@ sample_data = []
 
 start_date = datetime(2022, 1, 1)
 number_of_streams = 6000
+artist_names = list(artists.keys())
 
 for _ in range(number_of_streams):
-    artist = random.choice(list(artists.keys()))
-    song, album, duration = random.choice(artists[artist])
-
     timestamp = start_date + timedelta(
         days=random.randint(0, 1095),
         hours=random.randint(0, 23),
         minutes=random.randint(0, 59),
         seconds=random.randint(0, 59),
     )
-
-    artist_names = list(artists.keys())
 
     if timestamp.year == 2022:
         weights = [10, 9, 8, 6, 5, 4, 3, 2, 1, 1]

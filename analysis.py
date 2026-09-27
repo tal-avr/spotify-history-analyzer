@@ -1,14 +1,20 @@
 from datetime import datetime
-from sqlite3.dbapi2 import Timestamp
 from zoneinfo import ZoneInfo
 from statistics import median
 
 MIN_EVENTS_FOR_SKIP_RATE = 40
+PLAY_THRESHOLD_MS = 30_000
+SKIP_DURATION_FRACTION = 2 / 3
+COUNTRY_ANOMALY_MAX_GAP_SECONDS = 1800
+MIN_MONTHLY_PLAYS_FOR_OBSESSION = 20
+MIN_MONTHLY_ARTIST_PLAYS_FOR_OBSESSION = 50
+MIN_MONTHLY_ALBUM_PLAYS_FOR_OBSESSION = 20
+MS_PER_HOUR = 3600000
 
 # This dictionary contains only selected country-to-timezone mappings.
 # Add additional countries as needed.
 # For countries with multiple timezones, use travel overrides instead.
-country_timezones = {
+COUNTRY_TIMEZONES = {
     "IL": "Asia/Jerusalem",
     "GB": "Europe/London",
     "FR": "Europe/Paris",
@@ -20,24 +26,29 @@ country_timezones = {
     "DE": "Europe/Berlin"
 }
 
+
+def prepare_travel_overrides(travel_overrides):
+    for override in travel_overrides:
+        override["start"] = datetime.fromisoformat(
+            override["start"]
+        ).date()
+
+        override["end"] = datetime.fromisoformat(
+            override["end"]
+        ).date()
+
+    return travel_overrides
+
 def get_timezone(timestamp, country, travel_overrides):
     date = timestamp.date()
 
     for override in travel_overrides:
-        start_date = datetime.fromisoformat(
-            override["start"]
-        ).date()
-
-        end_date = datetime.fromisoformat(
-            override["end"]
-        ).date()
-
-        if start_date <= date <= end_date:
+        if override["start"] <= date <= override["end"]:
             return override["timezone"]
 
-    return country_timezones.get(country)
+    return COUNTRY_TIMEZONES.get(country)
 
-def get_clean_country(data, index):
+def get_clean_country(data, timestamps, index):
     current_country = data[index]["conn_country"]
 
     if index == 0 or index == len(data) - 1:
@@ -46,17 +57,9 @@ def get_clean_country(data, index):
     previous_country = data[index - 1]["conn_country"]
     next_country = data[index + 1]["conn_country"]
 
-    previous_time = datetime.fromisoformat(
-        data[index - 1]["ts"].replace("Z", "+00:00")
-    )
-
-    current_time = datetime.fromisoformat(
-        data[index]["ts"].replace("Z", "+00:00")
-    )
-
-    next_time = datetime.fromisoformat(
-        data[index + 1]["ts"].replace("Z", "+00:00")
-    )
+    previous_time = timestamps[index - 1]
+    current_time = timestamps[index]
+    next_time = timestamps[index + 1]
 
     time_from_previous = (current_time - previous_time).total_seconds()
     time_to_next = (next_time - current_time).total_seconds()
@@ -64,12 +67,21 @@ def get_clean_country(data, index):
     if (
         previous_country == next_country
         and current_country != previous_country
-        and time_from_previous <= 1800
-        and time_to_next <= 1800
+        and time_from_previous <= COUNTRY_ANOMALY_MAX_GAP_SECONDS
+        and time_to_next <= COUNTRY_ANOMALY_MAX_GAP_SECONDS
     ):
         return previous_country
 
     return current_country
+
+def add_to_nested_dict(dictionary, outer_key, inner_key, amount):
+    if outer_key not in dictionary:
+        dictionary[outer_key] = {}
+
+    if inner_key not in dictionary[outer_key]:
+        dictionary[outer_key][inner_key] = 0
+
+    dictionary[outer_key][inner_key] += amount
 
 def estimate_song_durations(data):
     duration_samples = {}
@@ -98,7 +110,43 @@ def estimate_song_durations(data):
 
     return song_durations
 
-def build_artist_stats(data, travel_overrides, song_durations):
+def classify_skip(stream, ms_played, duration):
+    manual_skip = (
+        stream["skipped"] is True
+        or stream["reason_end"] == "fwdbtn"
+    )
+
+    if not manual_skip:
+        return False, False
+
+    if ms_played < PLAY_THRESHOLD_MS:
+        return True, True
+
+    if duration is not None and ms_played < SKIP_DURATION_FRACTION * duration:
+        return True, False
+
+    return False, False
+
+def calculate_obsessions(monthly_plays, min_plays):
+    obsessions = []
+
+    for month, items in monthly_plays.items():
+        total_month_plays = sum(items.values())
+
+        for item, plays in items.items():
+            if plays >= min_plays:
+                percentage = plays / total_month_plays * 100
+                obsessions.append(
+                    (item, month, plays, percentage)
+                )
+
+    return sorted(
+        obsessions,
+        key=lambda item: item[3],
+        reverse=True
+    )
+
+def build_listening_stats(data, travel_overrides, song_durations):
     artist_time = {}
     year_artist_time = {}
     song_time = {}
@@ -116,16 +164,20 @@ def build_artist_stats(data, travel_overrides, song_durations):
     song_skips = {}
     song_early_skips = {}
 
+    timestamps = [
+        datetime.fromisoformat(
+            stream["ts"].replace("Z", "+00:00")
+        )
+        for stream in data
+    ]
+
     for index, stream in enumerate(data):
         artist = stream["master_metadata_album_artist_name"]
         ms_played = stream["ms_played"]
         song = stream["master_metadata_track_name"]
         album = stream["master_metadata_album_album_name"]
-        timestamp = datetime.fromisoformat(
-            stream["ts"].replace("Z", "+00:00")
-        )
-
-        country = get_clean_country(data, index)
+        timestamp = timestamps[index]
+        country = get_clean_country(data, timestamps, index)
         timezone_name = get_timezone(
             timestamp,
             country,
@@ -144,70 +196,26 @@ def build_artist_stats(data, travel_overrides, song_durations):
             weekday = local_time.strftime("%A")
 
             if artist is not None:
-                if year not in year_artist_time:
-                    year_artist_time[year] = {}
+                add_to_nested_dict(year_artist_time, year, artist, ms_played)
 
-                if artist not in year_artist_time[year]:
-                    year_artist_time[year][artist] = 0
+                year_time[year] = year_time.get(year, 0) + ms_played
+                month_time[month] = month_time.get(month, 0) + ms_played
+                hour_time[hour] = hour_time.get(hour, 0) + ms_played
+                weekday_time[weekday] = weekday_time.get(weekday, 0) + ms_played
 
-                year_artist_time[year][artist] += ms_played
-
-                if year not in year_time:
-                    year_time[year] = 0
-
-                year_time[year] += ms_played
-
-                if month not in month_time:
-                    month_time[month] = 0
-
-                month_time[month] += ms_played
-
-                if hour not in hour_time:
-                    hour_time[hour] = 0
-
-                hour_time[hour] += ms_played
-
-                if weekday not in weekday_time:
-                    weekday_time[weekday] = 0
-
-                weekday_time[weekday] += ms_played
-
-                if song is not None and ms_played >= 30000:
+                if song is not None and ms_played >= PLAY_THRESHOLD_MS:
                     song_key = (song, artist)
 
-                    if month not in month_song_plays:
-                        month_song_plays[month] = {}
+                    add_to_nested_dict(month_song_plays, month, song_key, 1)
+                    add_to_nested_dict(month_artist_plays, month, artist, 1)
 
-                    if song_key not in month_song_plays[month]:
-                        month_song_plays[month][song_key] = 0
-
-                    month_song_plays[month][song_key] += 1
-
-                    if month not in month_artist_plays:
-                        month_artist_plays[month] = {}
-
-                    if artist not in month_artist_plays[month]:
-                        month_artist_plays[month][artist] = 0
-
-                    month_artist_plays[month][artist] += 1
-
-                    if artist is not None:
+                    if album is not None:
                         album_key = (album, artist)
-
-                        if month not in month_album_plays:
-                            month_album_plays[month] = {}
-
-                        if album_key not in month_album_plays[month]:
-                            month_album_plays[month][album_key] = 0
-
-                        month_album_plays[month][album_key] += 1
+                        add_to_nested_dict(month_album_plays, month, album_key, 1)
 
         # Artist total - doesn't depend on timezone
         if artist is not None:
-            if artist not in artist_time:
-                artist_time[artist] = 0
-            
-            artist_time[artist] += ms_played
+            artist_time[artist] = artist_time.get(artist, 0) + ms_played
 
         # Song analysis - doesn't depend on timezone
         if song is not None and artist is not None:
@@ -223,32 +231,27 @@ def build_artist_stats(data, travel_overrides, song_durations):
             song_events[song_key] += 1
             song_time[song_key] += ms_played
 
-            if ms_played >= 30000:
+            if ms_played >= PLAY_THRESHOLD_MS:
                 song_plays[song_key] += 1
 
-            manual_skip = (
-                stream["skipped"] is True
-                or stream["reason_end"] == "fwdbtn"
+            duration = song_durations.get(song_key)
+
+            is_skip, is_early_skip = classify_skip(
+                stream,
+                ms_played,
+                duration
             )
 
-            if manual_skip:
-                duration = song_durations.get(song_key)
+            if is_skip:
+                song_skips[song_key] += 1
 
-                if ms_played < 30000:
-                    song_early_skips[song_key] += 1
-                    song_skips[song_key] += 1
-
-                elif duration is not None and ms_played < (2 / 3) * duration:
-                    song_skips[song_key] += 1
+            if is_early_skip:
+                song_early_skips[song_key] += 1
 
         # Album analysis - doesn't depend on timezone
         if album is not None and artist is not None:
             album_key = (album, artist)
-        
-            if album_key not in album_time:
-                album_time[album_key] = 0 
-        
-            album_time[album_key] += ms_played
+            album_time[album_key] = album_time.get(album_key, 0) + ms_played
 
     song_skip_rates = {}
     song_early_skip_rates = {}
@@ -265,9 +268,40 @@ def build_artist_stats(data, travel_overrides, song_durations):
                 song_early_skips[song_key] / events
             )
 
-    return artist_time, year_artist_time, song_time, song_plays, album_time, year_time, month_time, hour_time, weekday_time, song_skip_rates, song_early_skip_rates, month_song_plays, month_artist_plays, month_album_plays
+    song_obsessions = calculate_obsessions(
+        month_song_plays,
+        MIN_MONTHLY_PLAYS_FOR_OBSESSION
+    )
 
-def print_top_artists(artist_times, title):
+    artist_obsessions = calculate_obsessions(
+        month_artist_plays,
+        MIN_MONTHLY_ARTIST_PLAYS_FOR_OBSESSION
+    )
+
+    album_obsessions = calculate_obsessions(
+        month_album_plays,
+        MIN_MONTHLY_ALBUM_PLAYS_FOR_OBSESSION
+    )
+
+    return {
+        "artist_time": artist_time,
+        "year_artist_time": year_artist_time,
+        "song_time": song_time,
+        "song_plays": song_plays,
+        "album_time": album_time,
+        "year_time": year_time,
+        "month_time": month_time,
+        "hour_time": hour_time,
+        "weekday_time": weekday_time,
+        "song_skip_rates": song_skip_rates,
+        "song_early_skip_rates": song_early_skip_rates,
+        "month_artist_plays": month_artist_plays,
+        "song_obsessions": song_obsessions,
+        "artist_obsessions": artist_obsessions,
+        "album_obsessions": album_obsessions
+    }
+
+def print_top_artists(artist_times, title="TOP 10 ALL TIME:"):
     sorted_artists = sorted(
         artist_times.items(),
         key=lambda item: item[1],
@@ -277,8 +311,15 @@ def print_top_artists(artist_times, title):
     print(f"\n{title}")
 
     for artist, ms in sorted_artists[:10]:
-        hours = ms / 3600000
+        hours = ms / MS_PER_HOUR
         print(artist, round(hours, 2), "hours")
+
+def print_top_artists_by_year(year_artist_time):
+    for year in sorted(year_artist_time):
+        print_top_artists(
+            year_artist_time[year],
+            f"TOP 10 IN {year}:"
+        )
 
 def print_top_songs_by_time(song_time):
     sorted_songs = sorted(
@@ -290,7 +331,7 @@ def print_top_songs_by_time(song_time):
     print("\nTOP 10 SONGS BY LISTENING TIME:")
 
     for (song, artist), ms in sorted_songs[:10]:
-        hours = ms / 3600000
+        hours = ms / MS_PER_HOUR
         print(f"{artist} - {song}: {round(hours, 2)} hours")
 
 def print_top_songs_by_plays(song_plays):
@@ -315,5 +356,5 @@ def print_top_albums(album_time):
     print("\nTOP 10 ALBUMS BY LISTENING TIME:")
 
     for (album, artist), ms in sorted_albums[:10]:
-        hours = ms / 3600000
+        hours = ms / MS_PER_HOUR
         print(f"{album} - {artist}: {round(hours, 2)} hours")

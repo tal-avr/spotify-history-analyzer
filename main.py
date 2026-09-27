@@ -1,41 +1,47 @@
-from data_loader import load_data, load_travel_overrides
-from analysis import build_artist_stats, estimate_song_durations
-from report import create_html_report, create_year_chart, create_month_chart, create_hour_chart, create_weekday_chart, create_artist_trends_chart
-
 import os
 
-files = [
-    "sample/sample_data.json"
-]
+from data_loader import load_data, load_travel_overrides
+from analysis import build_listening_stats, estimate_song_durations, prepare_travel_overrides
+from report import create_html_report
+from charts import create_year_chart, create_month_chart, create_hour_chart, create_weekday_chart, create_artist_trends_chart
 
-output_dir = "sample_output"
-os.makedirs(output_dir, exist_ok=True)
 
-data = load_data(files)
+def main():
 
-travel_overrides = load_travel_overrides(
-    "sample/sample_travel_overrides.json"
-)
+    files = [
+        "sample/sample_data.json"
+    ]
 
-song_durations = estimate_song_durations(data)
+    output_dir = "sample_output"
+    os.makedirs(output_dir, exist_ok=True)
 
-artist_time, year_artist_time, song_time, song_plays, album_time, year_time, month_time, hour_time, weekday_time, song_skip_rates, song_early_skip_rates, month_song_plays, month_artist_plays, month_album_plays = build_artist_stats(data, travel_overrides, song_durations)
+    data = load_data(files)
 
-# print_top_artists(artist_time, "TOP 10 ALL TIME:")
+    travel_overrides = load_travel_overrides(
+        "sample/sample_travel_overrides.json"
+    )
 
-# for year in sorted(year_artist_time):
-#     print_top_artists(
-#         year_artist_time[year],
-#         f"TOP 10 IN {year}:"
-#     )
+    travel_overrides = prepare_travel_overrides(
+        travel_overrides
+    )
 
-# print_top_songs_by_time(song_time)
-# print_top_songs_by_plays(song_plays)
-# print_top_albums(album_time)
+    song_durations = estimate_song_durations(data)
 
-create_year_chart(year_time, output_dir)
-create_month_chart(month_time, output_dir)
-create_hour_chart(hour_time, output_dir)
-create_weekday_chart(weekday_time, output_dir)
-create_artist_trends_chart(month_artist_plays, output_dir)
-create_html_report(artist_time, year_artist_time, song_time, song_plays, album_time, year_time, month_time, song_skip_rates, song_early_skip_rates, month_song_plays, month_artist_plays, month_album_plays, output_dir)
+    stats = build_listening_stats(data, travel_overrides, song_durations)
+
+    create_year_chart(stats["year_time"], output_dir)
+    create_month_chart(stats["month_time"], output_dir)
+    create_hour_chart(stats["hour_time"], output_dir)
+    create_weekday_chart(stats["weekday_time"], output_dir)
+    create_artist_trends_chart(stats["month_artist_plays"], output_dir)
+    create_html_report(
+        stats["artist_time"], stats["year_artist_time"], stats["song_time"],
+        stats["song_plays"], stats["album_time"], stats["year_time"], stats["month_time"],
+        stats["song_skip_rates"], stats["song_early_skip_rates"],
+        stats["song_obsessions"], stats["artist_obsessions"], stats["album_obsessions"],
+        output_dir
+    )
+
+
+if __name__ == "__main__":
+    main()

@@ -37,6 +37,8 @@ A Python project for analyzing Spotify streaming history and generating a person
 
 ## Methodology
 
+The current analysis focuses on music listening. Podcast streams are not included in the music-based statistics.
+
 ### Plays
 A play is counted when a track is listened to for at least 30 seconds.
 
@@ -66,19 +68,21 @@ Fictional sample data and travel overrides are included in the `sample` folder f
 - `main.py` – runs the analysis and generates the report
 - `data_loader.py` – loads Spotify and travel data
 - `analysis.py` – contains the main analysis logic
-- `report.py` – generates charts and the HTML report
+- `charts.py` – generates report charts
+- `report.py` – builds the standalone HTML report
 - `generate_sample_data.py` – generates reproducible fictional sample data
 - `sample/` – sample input data
 - `sample_output/` – example report and charts generated from the sample data
 
 ## Next Steps
 
-Future development will focus on making the project more flexible and user-friendly, with particular emphasis on:
+Future development will focus on making the project more flexible and user-friendly, while also expanding its analytical scope. Particular emphasis will be placed on:
 
 - improving report design and visual presentation
 - allowing users to choose which analyses are included in the report
 - allowing Spotify data files to be added without modifying source code
 - adding further analyses of listening behavior and music preferences
+- adding podcast listening analysis
 
 ## Status
 
