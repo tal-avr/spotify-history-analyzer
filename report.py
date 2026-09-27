@@ -1,8 +1,14 @@
 import matplotlib.pyplot as plt
+import base64
 
 MIN_MONTHLY_PLAYS_FOR_OBSESSION = 20
 MIN_MONTHLY_ARTIST_PLAYS_FOR_OBSESSION = 50
 MIN_MONTHLY_ALBUM_PLAYS_FOR_OBSESSION = 20
+
+def image_to_base64(filename):
+    with open(filename, "rb") as image_file:
+        encoded = base64.b64encode(image_file.read()).decode("utf-8")
+    return encoded
 
 def create_table(headers, rows, table_class=""):
     html = f'<table class="{table_class}">'
@@ -229,8 +235,10 @@ def create_html_report(artist_time, year_artist_time, song_time, song_plays, alb
             round(hours, 2)
         ])
 
-    html += """
-        <img src="year_listening.png" alt="Listening Time by Year">
+    year_chart = image_to_base64(f"{output_dir}/year_listening.png")
+
+    html += f"""
+        <img src="data:image/png;base64,{year_chart}" alt="Listening Time by Year">
         """
     
     html += "<h2>Listening Time by Month</h2>"
@@ -240,18 +248,24 @@ def create_html_report(artist_time, year_artist_time, song_time, song_plays, alb
         month_rows
     )
 
-    html += """
-        <img src="month_listening.png" alt="Listening Time by Month">
+    month_chart = image_to_base64(f"{output_dir}/month_listening.png")
+
+    html += f"""
+        <img src="data:image/png;base64,{month_chart}" alt="Listening Time by Month">
     """
 
-    html += """
+    hour_chart = image_to_base64(f"{output_dir}/hour_listening.png")
+
+    html += f"""
         <h2>Listening Time by Hour of the Day</h2>
-        <img src="hour_listening.png" alt="Listening Time by Hour of Day">
+        <img src="data:image/png;base64,{hour_chart}" alt="Listening Time by Hour">
     """
 
-    html += """
+    weekday_chart = image_to_base64(f"{output_dir}/weekday_listening.png")
+
+    html += f"""
         <h2>Listening Time by Day of the Week</h2>
-        <img src="weekday_listening.png" alt="Listening Time by Day of Week">
+        <img src="data:image/png;base64,{weekday_chart}" alt="Listening Time by Weekday">
     """
 
     sorted_skip_rates = sorted(
@@ -430,13 +444,11 @@ def create_html_report(artist_time, year_artist_time, song_time, song_plays, alb
         rows
     )
 
-    html += """
+    artist_trends_chart = image_to_base64(f"{output_dir}/artist_trends.png")
+
+    html += f"""
         <h2>Top Artists Over Time</h2>
-        <img
-            class="wide-chart"
-            src="artist_trends.png"
-            alt="Top Artists Over Time"
-         >
+        <img class="wide-chart" src="data:image/png;base64,{artist_trends_chart}" alt="Top Artists Over Time">
     """
 
     html += """

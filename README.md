@@ -1,8 +1,8 @@
 # Spotify History Analyzer
 
-A Python project for analyzing Spotify Streaming History and generating a personalized HTML listening report.
+A Python project for analyzing Spotify streaming history and generating a personalized HTML listening report, with a focus on long-term listening habits and changes in music preferences over time.
 
-## Features
+## Current Features
 
 - Top artists, songs, and albums
 - Listening trends by year and month
@@ -12,6 +12,14 @@ A Python project for analyzing Spotify Streaming History and generating a person
 - Artist trends over time
 - Timezone-aware analysis with optional travel overrides
 
+## Built With
+
+- Python
+- JSON
+- Matplotlib
+- HTML
+- CSS
+
 ## How to Run
 
 1. Place your Spotify streaming history JSON files in the `data` folder.
@@ -19,6 +27,13 @@ A Python project for analyzing Spotify Streaming History and generating a person
 3. Optionally add travel timezone overrides.
 4. Run `python3 main.py`.
 5. Open the generated `report.html` file in your browser.
+
+## How the Report Is Built
+
+1. Spotify JSON files are loaded and combined.
+2. Streaming events are cleaned, converted to local time when possible, and analyzed.
+3. Charts are generated with Matplotlib.
+4. Everything is combined into a standalone HTML report.
 
 ## Methodology
 
@@ -28,9 +43,7 @@ A play is counted when a track is listened to for at least 30 seconds.
 ### Skips
 An early skip is a manual skip before 30 seconds.
 
-A skip is counted when a track is manually skipped either:
-- before 30 seconds, or
-- before two-thirds of its estimated duration.
+A skip is counted when a track is manually skipped either before 30 seconds or before two-thirds of its estimated duration.
 
 Track duration is estimated using the median listening time of streams that ended with `trackdone`.
 
@@ -38,29 +51,34 @@ Track duration is estimated using the median listening time of streams that ende
 A monthly obsession is a song, artist, or album that makes up a large share of listening activity in a given month.
 
 ### Timezones
-Spotify timestamps are stored in UTC. The analyzer converts them to local time using country-based timezone mappings.
+Spotify timestamps are stored in UTC and converted to local time using country-based timezone mappings.
 
-If Spotify's recorded country does not match the listener's actual location during a trip, optional travel overrides can be provided through a JSON file where the user specifies the relevant date range and timezone.
+If Spotify's recorded country does not match the listener's actual location during a trip, travel overrides can be provided through a JSON file containing the relevant date range and timezone.
 
-## Sample Data
+## Dataset
 
-The repository includes fictional sample data so the project can be tested without using personal Spotify history.
+The project analyzes Spotify streaming-history JSON records containing listening duration, track metadata, country, platform, and playback information.
 
-The sample files are located in the `sample` folder and include:
-- generated Spotify streaming history data
-- example travel timezone overrides
-
-The sample streaming history is generated with a fixed random seed so it stays consistent across runs.
+Fictional sample data and travel overrides are included in the `sample` folder for testing. A fixed random seed keeps the generated sample consistent across runs.
 
 ## Project Structure
 
 - `main.py` – runs the analysis and generates the report
-- `data_loader.py` – loads Spotify history and travel override files
-- `analysis.py` – contains the main data-processing and analysis logic
-- `report.py` – creates charts and the HTML report
+- `data_loader.py` – loads Spotify and travel data
+- `analysis.py` – contains the main analysis logic
+- `report.py` – generates charts and the HTML report
 - `generate_sample_data.py` – generates reproducible fictional sample data
-- `sample/` – contains sample streaming history and travel override files
-- `sample_output/` – contains an example HTML report and charts generated from the fictional sample data
+- `sample/` – sample input data
+- `sample_output/` – example report and charts generated from the sample data
+
+## Next Steps
+
+Future development will focus on making the project more flexible and user-friendly, with particular emphasis on:
+
+- improving report design and visual presentation
+- allowing users to choose which analyses are included in the report
+- allowing Spotify data files to be added without modifying source code
+- adding further analyses of listening behavior and music preferences
 
 ## Status
 
